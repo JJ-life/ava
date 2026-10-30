@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>LFM3 Avatar</title>
+    <title>Ava</title>
     <link rel="icon" href="data:," />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     
-  <link rel="stylesheet" crossorigin href="./chunk-sarxdv2b.css"><script type="module" crossorigin src="./chunk-dnx9jhwj.js"></script></head>
+  <link rel="stylesheet" crossorigin href="./chunk-w8avpjmm.css"><script type="module" crossorigin src="./chunk-s08sdfdm.js"></script></head>
   <body>
     <main id="app">
       <!-- The avatar is the hero: a full-viewport 3D stage. -->
@@ -21,10 +21,10 @@
 
       <header id="topbar">
         <div id="identity">
-          <h1>LFM3&nbsp;Avatar</h1>
+          <h1>Ava</h1>
           <p>
-            Talk to <strong>LFM3-Omni</strong> face to face, entirely in your browser.
-            WebGPU&nbsp;inference · Silero&nbsp;VAD · TalkingHead&nbsp;3D
+            Talk to <strong>Ava</strong> face to face, entirely in your browser.
+            LFM3-Omni on WebGPU · Silero&nbsp;VAD · TalkingHead&nbsp;3D
           </p>
         </div>
         <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Settings">
@@ -64,14 +64,15 @@
             Show subtitles while she speaks
           </label>
           <label>
-            Extra instructions
-            <textarea
-              id="instructions"
-              rows="4"
-              placeholder="Anything you want her to know or do (persona stays)."
-            ></textarea>
+            System prompt
+            <textarea id="system-prompt" rows="10" spellcheck="false"></textarea>
+            <span class="hint">
+              Who she is and how she talks. Applies from her next reply. “Respond with
+              interleaved text and audio.” is always added after it, so she can speak.
+            </span>
           </label>
           <div class="dialog-actions">
+            <button type="button" id="reset-prompt">Restore default</button>
             <button value="close" class="primary">Done</button>
           </div>
         </form>

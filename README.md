@@ -1,5 +1,5 @@
 ---
-title: LFM3 Avatar
+title: Ava
 emoji: 🗣️
 colorFrom: indigo
 colorTo: purple
@@ -12,9 +12,9 @@ models:
   - LiquidAI/LFM3-Omni-2B-GGUF
 ---
 
-# LFM3 Avatar
+# Ava
 
-Hands-free voice chat with a 3D lip-synced avatar, running entirely in the
+Hands-free voice chat with Ava, a 3D lip-synced avatar, running entirely in the
 browser: the UX of [victor/gemma-avatar](https://huggingface.co/spaces/victor/gemma-avatar)
 on the model and WebGPU runtime of
 [LiquidAI/LFM3-Omni-2B-WebGPU](https://huggingface.co/spaces/LiquidAI/LFM3-Omni-2B-WebGPU).
@@ -31,6 +31,9 @@ you speak → Silero VAD (WASM) → LFM3-Omni-2B (WebGPU): audio in, interleaved
 - **Barge-in**: talk over her and generation and playback stop immediately.
 - **Body language** (moods, thumbs up, shrug, a wave) is read from her words as they
   are heard, in `src/reactions.js`.
+- **Character** is a short system prompt you can edit directly in Settings
+  (`src/system-prompt.js` has the default). The only thing added to it is the model's
+  required "Respond with interleaved text and audio." line.
 - **Lip-sync** is derived from the audio by HeadAudio, as in gemma-avatar.
 
 Differences from gemma-avatar, all forced by the model: there is no voice picker
