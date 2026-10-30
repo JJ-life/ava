@@ -6,6 +6,7 @@ colorTo: purple
 sdk: static
 app_file: index.html
 pinned: false
+thumbnail: https://huggingface.co/spaces/townbox/ava/resolve/main/thumbnail.webp
 short_description: Talk face to face with LFM3-Omni, running in your browser
 models:
   - LiquidAI/LFM3-Omni-2B
