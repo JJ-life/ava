@@ -15,7 +15,7 @@
  *   { kind: "progress", loaded?, total?, fraction?, status? }
  *   { kind: "ready", device, sampleRate }   { kind: "failed", name, message }
  *   { kind: "text", id, text }     { kind: "audio", id, samples }
- *   { kind: "truncate", id, samples, kept }   the reply ends at this audio sample
+ *   { kind: "truncate", id, samples }   the reply ends at this audio sample
  *   { kind: "finished", id, reason, usage, generated, error? }
  */
 
@@ -24,7 +24,7 @@ import {
   ContextOverflowError,
   DeviceLostError,
 } from "../vendor/Lfm3OmniForConditionalGeneration.js";
-import { RepeatGuard } from "./repeat-guard.js";
+import { RepeatGuard, findCut, firstSound } from "./repeat-guard.js";
 
 const LOAD_ATTEMPTS = 3; // Chromium occasionally returns no adapter on a cold GPU process
 const LOAD_RETRY_MS = 1500;
@@ -33,6 +33,7 @@ const LOAD_RETRY_MS = 1500;
 const SEARCH = new URL(location.href).searchParams;
 const HISTORY_BUDGET_TOKENS = Number(SEARCH.get("historyBudget")) || 3000;
 
+const PRE_SPEECH_SAMPLES = 1200; // keep 50 ms before her first sound
 /** @type {any} */ let model = null;
 /** @type {any} */ let session = null;
 let system = "";
@@ -118,50 +119,72 @@ async function respond({ id, audio }) {
     history.push({ role: "user", content: [{ type: "audio", audio }] });
 
     guard.beginReply();
-    /** @type {string | null} */ let keptOnRepeat = null;
+    let repeatFound = false;
+    let truncated = false;
+    /** @type {Float32Array[]} */ const heard = [];
     for (;;) {
       const stream = session.generate(messages(), { generation_mode: "interleaved", signal });
       let emitted = false;
       const started = performance.now();
       try {
         for await (const ev of stream) {
-          if (ev.type === "text") {
+          if (ev.type === "text" && !repeatFound) {
             emitted = true;
-            post({ kind: "text", id, text: ev.text });
-            const repeat = guard.push(ev.text, generated);
-            if (repeat) {
-              keptOnRepeat = repeat.kept;
-              post({ kind: "truncate", id, samples: repeat.cutAt, kept: repeat.kept });
-              controller.abort();
-              break;
-            }
+            const { released, repeat } = guard.push(ev.text);
+            if (released) post({ kind: "text", id, text: released });
+            repeatFound = repeat;
           } else if (ev.type === "audio") {
             emitted = true;
-            generated += ev.audio.length;
-            const samples = ev.audio.slice();
+            let samples = ev.audio.slice();
+            if (generated === 0) {
+              // Her replies open with ~0.8 s of silence. Don't make anyone wait for it.
+              const start = firstSound(samples);
+              if (start < 0) continue;
+              samples = samples.slice(Math.max(0, start - PRE_SPEECH_SAMPLES));
+            }
+            generated += samples.length;
+            if (repeatFound || guard.kept) heard.push(samples.slice());
             if (simulateRtf) {
               const due = started + (generated / model.audio_sampling_rate / simulateRtf) * 1000;
               await new Promise((r) => setTimeout(r, Math.max(0, due - performance.now())));
             }
             post({ kind: "audio", id, samples }, [samples.buffer]);
+            if (repeatFound) {
+              const audio = new Float32Array(generated);
+              let at = 0;
+              for (const h of heard) {
+                audio.set(h, at);
+                at += h.length;
+              }
+              const cut = findCut(audio, model.audio_sampling_rate, guard.kept.length);
+              if (cut !== null) {
+                post({ kind: "truncate", id, samples: cut });
+                truncated = true;
+                controller.abort();
+                break;
+              }
+            }
           }
         }
       } catch (err) {
-        if (!emitted && err instanceof ContextOverflowError && dropOldestExchange()) continue;
-        throw err;
+        if (!truncated) {
+          if (!emitted && err instanceof ContextOverflowError && dropOldestExchange()) continue;
+          throw err;
+        }
       }
-      const result = await stream.result;
-      usage = result.usage;
-      if (keptOnRepeat !== null) {
+      const result = await stream.result.catch(() => null);
+      usage = result?.usage ?? usage;
+      reason = result?.finish_reason ?? "stop";
+      if (repeatFound) {
         // History holds what she said, not the repeat, or it would teach her to loop.
+        history.push({ role: "assistant", content: guard.kept });
         reason = "stop";
-        history.push({ role: "assistant", content: keptOnRepeat });
-        guard.endReply();
       } else {
-        reason = result.finish_reason;
+        const rest = guard.flush();
+        if (rest) post({ kind: "text", id, text: rest });
         history.push(result.message);
-        if (reason === "stop") guard.endReply();
       }
+      guard.endReply();
       break;
     }
   } catch (err) {

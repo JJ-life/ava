@@ -47,8 +47,9 @@ LFM3-Omni-2B often re-asks its last question ("Red is a great choice. What's you
 favorite color?"), including with the original Space's exact prompt; rules, examples
 and per-turn notes in the prompt didn't stop it. `public/workers/repeat-guard.js`
 catches a repeated question or sentence in the text stream, which runs ahead of
-playback, then ends the reply just before it and keeps it out of the history. It can't
-cut a reply's first sentence, or audio already heard, and it can't make her lead better.
+playback, then ends the reply at the silence after the last good sentence and keeps
+the repeat out of subtitles and history. It leaves a reply's first sentence alone
+(silence would be worse), and it can't make her lead better.
 
 ## Run
 
