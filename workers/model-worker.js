@@ -2,13 +2,12 @@
 /**
  * LFM3-Omni on WebGPU, off the main thread so the avatar keeps its frame rate.
  * One conversation lives here: the history, the prefix-cached session, and the
- * tool loop. Everything the main thread needs comes back as a stream of events.
+ * context budget. Everything the main thread needs comes back as a stream of events.
  *
  * main -> worker:
- *   { kind: "load", model, tools, system }
+ *   { kind: "load", model, system }
  *   { kind: "respond", id, audio }   a user turn, 16 kHz Float32
  *   { kind: "abort", id }            barge-in: stop generating this turn
- *   { kind: "tool-result", callId, content }
  *   { kind: "system", system }       new persona / instructions
  *   { kind: "reset" }                forget the conversation
  *
@@ -16,7 +15,7 @@
  *   { kind: "progress", loaded?, total?, fraction?, status? }
  *   { kind: "ready", device, sampleRate }   { kind: "failed", name, message }
  *   { kind: "text", id, text }     { kind: "audio", id, samples }
- *   { kind: "tool", id, callId, name, args }
+ *   { kind: "truncate", id, samples, kept }   the reply ends at this audio sample
  *   { kind: "finished", id, reason, usage, generated, error? }
  */
 
@@ -25,11 +24,8 @@ import {
   ContextOverflowError,
   DeviceLostError,
 } from "../vendor/Lfm3OmniForConditionalGeneration.js";
+import { RepeatGuard } from "./repeat-guard.js";
 
-// A reply must end in speech: left to itself the model can keep calling tools
-// and never talk. After this many tool rounds it generates with no tools at all.
-const MAX_TOOL_ROUNDS = 2;
-const TOOL_DONE_NOTE = " Now say your reply out loud; don't call another tool.";
 const LOAD_ATTEMPTS = 3; // Chromium occasionally returns no adapter on a cold GPU process
 const LOAD_RETRY_MS = 1500;
 // Speech costs ~16 tokens/s each way and re-reading history after a trim takes
@@ -39,14 +35,12 @@ const HISTORY_BUDGET_TOKENS = Number(SEARCH.get("historyBudget")) || 3000;
 
 /** @type {any} */ let model = null;
 /** @type {any} */ let session = null;
-/** @type {any[]} */ let tools = [];
 let system = "";
 /** @type {any[]} */ let history = [];
 let idle = Promise.resolve();
+let guard = new RepeatGuard();
 /** @type {Map<number, AbortController>} */
 const running = new Map();
-/** @type {Map<string, (content: string) => void>} */
-const pendingTools = new Map();
 const simulateRtf = Number(SEARCH.get("simulateRtf")) || 0;
 
 const post = (msg, transfer = []) => self.postMessage(msg, { transfer });
@@ -69,8 +63,7 @@ function compactHistory() {
   for (let i = 0; i < Math.floor(exchanges / 2); i++) dropOldestExchange();
 }
 
-async function load({ model: modelId, tools: toolDefs, system: sys }) {
-  tools = toolDefs;
+async function load({ model: modelId, system: sys }) {
   system = sys;
   let lastErr;
   for (let attempt = 1; attempt <= LOAD_ATTEMPTS; attempt++) {
@@ -92,7 +85,7 @@ async function load({ model: modelId, tools: toolDefs, system: sys }) {
       });
       session = model.create_session();
       post({ kind: "progress", status: "Getting ready" });
-      await session.prime(messages(), { tools }).result;
+      await session.prime(messages()).result;
       post({ kind: "ready", device: model.deviceInfo(), sampleRate: model.audio_sampling_rate });
       return;
     } catch (err) {
@@ -107,21 +100,7 @@ async function load({ model: modelId, tools: toolDefs, system: sys }) {
   post({ kind: "failed", name: lastErr?.name ?? "Error", message: lastErr?.message ?? String(lastErr) });
 }
 
-/** @param {number} id @param {any} call @param {AbortSignal} signal */
-function runTool(id, call, signal) {
-  return new Promise((resolve) => {
-    const callId = call.id;
-    const done = (content) => {
-      pendingTools.delete(callId);
-      resolve(content);
-    };
-    pendingTools.set(callId, done);
-    signal.addEventListener("abort", () => done("Stopped."), { once: true });
-    post({ kind: "tool", id, callId, name: call.function.name, args: call.function.arguments });
-  });
-}
-
-/** One user turn: generate, run any tools, generate again until she's done. */
+/** One user turn. */
 async function respond({ id, audio }) {
   const controller = new AbortController();
   running.set(id, controller);
@@ -138,12 +117,10 @@ async function respond({ id, audio }) {
     signal.throwIfAborted();
     history.push({ role: "user", content: [{ type: "audio", audio }] });
 
-    for (let round = 0; round < MAX_TOOL_ROUNDS + 1; round++) {
-      const stream = session.generate(messages(), {
-        generation_mode: "interleaved",
-        ...(round < MAX_TOOL_ROUNDS ? { tools } : {}),
-        signal,
-      });
+    guard.beginReply();
+    /** @type {string | null} */ let keptOnRepeat = null;
+    for (;;) {
+      const stream = session.generate(messages(), { generation_mode: "interleaved", signal });
       let emitted = false;
       const started = performance.now();
       try {
@@ -151,6 +128,13 @@ async function respond({ id, audio }) {
           if (ev.type === "text") {
             emitted = true;
             post({ kind: "text", id, text: ev.text });
+            const repeat = guard.push(ev.text, generated);
+            if (repeat) {
+              keptOnRepeat = repeat.kept;
+              post({ kind: "truncate", id, samples: repeat.cutAt, kept: repeat.kept });
+              controller.abort();
+              break;
+            }
           } else if (ev.type === "audio") {
             emitted = true;
             generated += ev.audio.length;
@@ -163,26 +147,22 @@ async function respond({ id, audio }) {
           }
         }
       } catch (err) {
-        if (!emitted && err instanceof ContextOverflowError && dropOldestExchange()) {
-          round -= 1;
-          continue;
-        }
+        if (!emitted && err instanceof ContextOverflowError && dropOldestExchange()) continue;
         throw err;
       }
       const result = await stream.result;
       usage = result.usage;
-      reason = result.finish_reason;
-      history.push(result.message);
-      if (reason !== "tool_calls") break;
-
-      for (const call of result.message.tool_calls ?? []) {
-        const content = (call.errors?.length ? call.errors.join("; ") : await runTool(id, call, signal)) + TOOL_DONE_NOTE;
-        history.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content });
+      if (keptOnRepeat !== null) {
+        // History holds what she said, not the repeat, or it would teach her to loop.
+        reason = "stop";
+        history.push({ role: "assistant", content: keptOnRepeat });
+        guard.endReply();
+      } else {
+        reason = result.finish_reason;
+        history.push(result.message);
+        if (reason === "stop") guard.endReply();
       }
-      if (signal.aborted) {
-        reason = "cancelled";
-        break;
-      }
+      break;
     }
   } catch (err) {
     if (err?.name === "AbortError" || signal.aborted) {
@@ -211,15 +191,13 @@ self.onmessage = ({ data }) => {
     case "abort":
       running.get(data.id)?.abort();
       break;
-    case "tool-result":
-      pendingTools.get(data.callId)?.(data.content);
-      break;
     case "system":
       system = data.system;
       break;
     case "reset":
       idle = idle.then(() => {
         history = [];
+        guard = new RepeatGuard();
       });
       break;
   }

@@ -11,6 +11,7 @@
  *     { kind: "lead", samples }      queue this much before starting a turn
  *     { kind: "flush" }              no more audio is coming: start regardless
  *     { kind: "clear" }              wipe the queue (barge-in)
+ *     { kind: "truncate", samples }  end this reply once it has played this far
  *
  *   worklet -> main:
  *     { kind: "progress", played, queued }   input samples, every ~50 ms
@@ -31,6 +32,7 @@ class AudioPlaybackProcessor extends AudioWorkletProcessor {
     this._queued = 0;
     this._played = 0;
     this._lead = 0;
+    this._limit = Infinity;
     this._flushed = false;
     this._playing = false;
     this._fadeIn = 0;
@@ -56,7 +58,12 @@ class AudioPlaybackProcessor extends AudioWorkletProcessor {
           this._queue.push(data.samples);
           this._queued += data.samples.length;
           break;
+        case "truncate":
+          this._limit = data.samples;
+          this._flushed = true;
+          break;
         case "clear":
+          this._limit = Infinity;
           this._queue.length = 0;
           this._queued = 0;
           this._readIdx = 0;
@@ -105,6 +112,12 @@ class AudioPlaybackProcessor extends AudioWorkletProcessor {
 
     for (let i = 0; i < out.length; i++) {
       let sample = 0;
+      if (this._played >= this._limit && this._queue.length > 0) {
+        this._queue.length = 0;
+        this._queued = 0;
+        this._readIdx = 0;
+        this._limit = Infinity;
+      }
       if (this._playing) {
         if (this._queue.length === 0) {
           // Ran dry: settle from the last value so the cut can't click.
