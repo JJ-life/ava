@@ -12,14 +12,14 @@ export const FRAME_SAMPLES = 512; // 32 ms at 16 kHz
 
 export const DEFAULTS = {
   startProb: 0.5,
-  startFrames: 3, // 96 ms
+  startFrames: 4, // 128 ms
   guardedStartProb: 0.75,
   guardedStartFrames: 9, // 288 ms
   endProb: 0.35,
   endFrames: 17, // 544 ms of quiet ends the turn
   trailFrames: 6, // keep 192 ms of the quiet tail
   prerollFrames: 12, // 384 ms before the trigger, so onsets aren't clipped
-  minSpeechFrames: 5, // 160 ms of speech, or it was a misfire: one-word answers count
+  minSpeechFrames: 8, // 256 ms of actual speech, or it was a misfire
   maxFrames: 938, // 30 s
 };
 

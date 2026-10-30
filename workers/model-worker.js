@@ -15,7 +15,6 @@
  *   { kind: "progress", loaded?, total?, fraction?, status? }
  *   { kind: "ready", device, sampleRate }   { kind: "failed", name, message }
  *   { kind: "text", id, text }     { kind: "audio", id, samples }
- *   { kind: "truncate", id, samples }   the reply ends at this audio sample
  *   { kind: "finished", id, reason, usage, generated, error? }
  */
 
@@ -24,7 +23,6 @@ import {
   ContextOverflowError,
   DeviceLostError,
 } from "../vendor/Lfm3OmniForConditionalGeneration.js";
-import { RepeatGuard, findCut, firstSound } from "./repeat-guard.js";
 
 const LOAD_ATTEMPTS = 3; // Chromium occasionally returns no adapter on a cold GPU process
 const LOAD_RETRY_MS = 1500;
@@ -39,7 +37,6 @@ const PRE_SPEECH_SAMPLES = 1200; // keep 50 ms before her first sound
 let system = "";
 /** @type {any[]} */ let history = [];
 let idle = Promise.resolve();
-let guard = new RepeatGuard();
 /** @type {Map<number, AbortController>} */
 const running = new Map();
 const simulateRtf = Number(SEARCH.get("simulateRtf")) || 0;
@@ -118,73 +115,40 @@ async function respond({ id, audio }) {
     signal.throwIfAborted();
     history.push({ role: "user", content: [{ type: "audio", audio }] });
 
-    guard.beginReply();
-    let repeatFound = false;
-    let truncated = false;
-    /** @type {Float32Array[]} */ const heard = [];
     for (;;) {
       const stream = session.generate(messages(), { generation_mode: "interleaved", signal });
       let emitted = false;
       const started = performance.now();
       try {
         for await (const ev of stream) {
-          if (ev.type === "text" && !repeatFound) {
+          if (ev.type === "text") {
             emitted = true;
-            const { released, repeat } = guard.push(ev.text);
-            if (released) post({ kind: "text", id, text: released });
-            repeatFound = repeat;
+            post({ kind: "text", id, text: ev.text });
           } else if (ev.type === "audio") {
             emitted = true;
             let samples = ev.audio.slice();
             if (generated === 0) {
               // Her replies open with ~0.8 s of silence. Don't make anyone wait for it.
-              const start = firstSound(samples);
+              const start = samples.findIndex((v) => Math.abs(v) > 0.01);
               if (start < 0) continue;
               samples = samples.slice(Math.max(0, start - PRE_SPEECH_SAMPLES));
             }
             generated += samples.length;
-            if (repeatFound || guard.kept) heard.push(samples.slice());
             if (simulateRtf) {
               const due = started + (generated / model.audio_sampling_rate / simulateRtf) * 1000;
               await new Promise((r) => setTimeout(r, Math.max(0, due - performance.now())));
             }
             post({ kind: "audio", id, samples }, [samples.buffer]);
-            if (repeatFound) {
-              const audio = new Float32Array(generated);
-              let at = 0;
-              for (const h of heard) {
-                audio.set(h, at);
-                at += h.length;
-              }
-              const cut = findCut(audio, model.audio_sampling_rate, guard.kept.length);
-              if (cut !== null) {
-                post({ kind: "truncate", id, samples: cut });
-                truncated = true;
-                controller.abort();
-                break;
-              }
-            }
           }
         }
       } catch (err) {
-        if (!truncated) {
-          if (!emitted && err instanceof ContextOverflowError && dropOldestExchange()) continue;
-          throw err;
-        }
+        if (!emitted && err instanceof ContextOverflowError && dropOldestExchange()) continue;
+        throw err;
       }
-      const result = await stream.result.catch(() => null);
-      usage = result?.usage ?? usage;
-      reason = result?.finish_reason ?? "stop";
-      if (repeatFound) {
-        // History holds what she said, not the repeat, or it would teach her to loop.
-        history.push({ role: "assistant", content: guard.kept });
-        reason = "stop";
-      } else {
-        const rest = guard.flush();
-        if (rest) post({ kind: "text", id, text: rest });
-        history.push(result.message);
-      }
-      guard.endReply();
+      const result = await stream.result;
+      usage = result.usage;
+      reason = result.finish_reason;
+      history.push(result.message);
       break;
     }
   } catch (err) {
@@ -220,7 +184,6 @@ self.onmessage = ({ data }) => {
     case "reset":
       idle = idle.then(() => {
         history = [];
-        guard = new RepeatGuard();
       });
       break;
   }

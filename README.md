@@ -41,15 +41,11 @@ avatar tools it gestures on every turn, gives shallow replies and can loop witho
 speaking. The runtime, message format, generation mode and greedy decoding otherwise
 match the original Space.
 
-## Repetition
+## Known model behaviour
 
-LFM3-Omni-2B often re-asks its last question ("Red is a great choice. What's your
-favorite color?"), including with the original Space's exact prompt; rules, examples
-and per-turn notes in the prompt didn't stop it. `public/workers/repeat-guard.js`
-catches a repeated question or sentence in the text stream, which runs ahead of
-playback, then ends the reply at the silence after the last good sentence and keeps
-the repeat out of subtitles and history. It leaves a reply's first sentence alone
-(silence would be worse), and it can't make her lead better.
+LFM3-Omni-2B can re-ask its last question and can't sustain a game like Twenty
+Questions: it answers "no" to everything and doesn't hold a secret. The original
+LiquidAI Space does the same with the same model. This app doesn't try to hide it.
 
 ## Run
 
