@@ -40,6 +40,7 @@ let idle = Promise.resolve();
 /** @type {Map<number, AbortController>} */
 const running = new Map();
 const simulateRtf = Number(SEARCH.get("simulateRtf")) || 0;
+const holdLoadMs = Number(SEARCH.get("holdLoadMs")) || 0; // testing: stretch out the load
 
 const post = (msg, transfer = []) => self.postMessage(msg, { transfer });
 
@@ -84,6 +85,7 @@ async function load({ model: modelId, system: sys }) {
       session = model.create_session();
       post({ kind: "progress", status: "Getting ready" });
       await session.prime(messages()).result;
+      if (holdLoadMs) await new Promise((r) => setTimeout(r, holdLoadMs));
       post({ kind: "ready", device: model.deviceInfo(), sampleRate: model.audio_sampling_rate });
       return;
     } catch (err) {
