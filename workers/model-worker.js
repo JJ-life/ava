@@ -26,10 +26,11 @@ import {
 
 const LOAD_ATTEMPTS = 3; // Chromium occasionally returns no adapter on a cold GPU process
 const LOAD_RETRY_MS = 1500;
-// Speech costs ~16 tokens/s each way and re-reading history after a trim takes
-// ~2.3 ms/token, so history stays well under the session's 8192 tokens.
+// Her replies stay in history as text only: her speech costs ~16 tokens/s and left
+// no room for what was said, so a 44-turn chat now fits and she still recalls it.
+// Past the budget half of it goes, well under the session's 8192 tokens.
 const SEARCH = new URL(location.href).searchParams;
-const HISTORY_BUDGET_TOKENS = Number(SEARCH.get("historyBudget")) || 3000;
+const HISTORY_BUDGET_TOKENS = Number(SEARCH.get("historyBudget")) || 6000;
 
 const PRE_SPEECH_SAMPLES = 1200; // keep 50 ms before her first sound
 /** @type {any} */ let model = null;
@@ -37,6 +38,7 @@ const PRE_SPEECH_SAMPLES = 1200; // keep 50 ms before her first sound
 let system = "";
 /** @type {any[]} */ let history = [];
 let idle = Promise.resolve();
+/** @type {AbortController | null} */ let rereading = null;
 /** @type {Map<number, AbortController>} */
 const running = new Map();
 const simulateRtf = Number(SEARCH.get("simulateRtf")) || 0;
@@ -60,6 +62,23 @@ function dropOldestExchange() {
 function compactHistory() {
   const exchanges = history.filter((m) => m.role === "user").length;
   for (let i = 0; i < Math.floor(exchanges / 2); i++) dropOldestExchange();
+}
+
+/** The reply as history keeps it: what she said, not the sound of it. */
+function textOnly(message) {
+  if (!Array.isArray(message.content)) return message;
+  return { ...message, content: message.content.filter((c) => c.type === "text").map((c) => c.text).join("") };
+}
+
+/**
+ * Settle the cache while she's idle, re-reading a trimmed history and rewinding
+ * past her audio, so nobody waits for it on their next turn. Stops short of the last reply: the cache can only rewind to its end,
+ * and this prompt's end must still be a prefix of the next one.
+ */
+async function reread(signal) {
+  const stream = session.generate(messages().slice(0, -1), { generation_mode: "text", max_new_tokens: 1, signal });
+  for await (const _ of stream);
+  await stream.result;
 }
 
 async function load({ model: modelId, system: sys }) {
@@ -105,6 +124,7 @@ async function respond({ id, audio }) {
   const controller = new AbortController();
   running.set(id, controller);
   const { signal } = controller;
+  rereading?.abort();
   const prior = idle;
   /** @type {() => void} */ let release = () => {};
   idle = new Promise((r) => (release = r));
@@ -150,7 +170,7 @@ async function respond({ id, audio }) {
       const result = await stream.result;
       usage = result.usage;
       reason = result.finish_reason;
-      history.push(result.message);
+      history.push(textOnly(result.message));
       break;
     }
   } catch (err) {
@@ -164,7 +184,14 @@ async function respond({ id, audio }) {
   } finally {
     running.delete(id);
     post({ kind: "finished", id, reason, usage, generated, error });
-    if (usage && usage.prompt_tokens + usage.completion_tokens > HISTORY_BUDGET_TOKENS) compactHistory();
+    if (usage && !signal.aborted) {
+      if (session.count_tokens(messages()).prompt_tokens > HISTORY_BUDGET_TOKENS) compactHistory();
+      rereading = new AbortController();
+      await reread(rereading.signal).catch((err) => {
+        if (err?.name !== "AbortError" && !rereading?.signal.aborted) console.warn("re-read failed:", err);
+      });
+      rereading = null;
+    }
     release();
   }
 }
