@@ -24,7 +24,7 @@ import {
   DeviceLostError,
 } from "../vendor/Lfm3OmniForConditionalGeneration.js";
 
-const LOAD_ATTEMPTS = 3; // Chromium occasionally returns no adapter on a cold GPU process
+const LOAD_ATTEMPTS = 4; // Chromium occasionally returns no adapter on a cold GPU process, and networks drop requests
 const LOAD_RETRY_MS = 1500;
 // Her replies stay in history as text only: her speech costs ~16 tokens/s and left
 // no room for what was said, so a 44-turn chat now fits and she still recalls it.
@@ -112,8 +112,10 @@ async function load({ model: modelId, system: sys }) {
       console.warn(`model load attempt ${attempt} failed:`, err);
       const adapterGlitch = /No WebGPU adapter/i.test(String(err?.message));
       if (adapterGlitch && attempt === LOAD_ATTEMPTS) lastErr = Object.assign(new Error(err.message), { name: "WebGPUUnavailable" });
-      if (!adapterGlitch || attempt === LOAD_ATTEMPTS) break;
-      await new Promise((r) => setTimeout(r, LOAD_RETRY_MS));
+      // A multi-gigabyte download over a real connection will sometimes drop a request. That's worth another go, after a growing pause; what's already cached isn't fetched again.
+      const networkGlitch = /failed to fetch|networkerror|network error|load failed|err_/i.test(String(err?.message));
+      if ((!adapterGlitch && !networkGlitch) || attempt === LOAD_ATTEMPTS) break;
+      await new Promise((r) => setTimeout(r, LOAD_RETRY_MS * 2 ** (attempt - 1)));
     }
   }
   post({ kind: "failed", name: lastErr?.name ?? "Error", message: lastErr?.message ?? String(lastErr) });
