@@ -37,3 +37,4 @@ avatars/brunette.glb filter=lfs diff=lfs merge=lfs -text
 avatars/ava-hd.glb filter=lfs diff=lfs merge=lfs -text
 avatars/ava-hd-mobile.glb filter=lfs diff=lfs merge=lfs -text
 avatars/ava-skin-grain.webp filter=lfs diff=lfs merge=lfs -text
+thumbnail-v3.jpg filter=lfs diff=lfs merge=lfs -text
