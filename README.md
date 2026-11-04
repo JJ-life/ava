@@ -11,6 +11,7 @@ short_description: Talk face to face with LFM3-Omni, running in your browser
 models:
   - LiquidAI/LFM3-Omni-2B
   - LiquidAI/LFM3-Omni-2B-GGUF
+  - LiquidAI/LFM3-1.7B
 ---
 
 # Ava
@@ -20,6 +21,10 @@ browser: the UX of [victor/gemma-avatar](https://huggingface.co/spaces/victor/ge
 on the model and WebGPU runtime of
 [LiquidAI/LFM3-Omni-2B-WebGPU](https://huggingface.co/spaces/LiquidAI/LFM3-Omni-2B-WebGPU).
 No backend: your voice never leaves the device.
+
+Model: [LiquidAI/LFM3-Omni-2B](https://huggingface.co/LiquidAI/LFM3-Omni-2B), loaded from
+[LiquidAI/LFM3-Omni-2B-GGUF](https://huggingface.co/LiquidAI/LFM3-Omni-2B-GGUF). It is built on the
+[LiquidAI/LFM3-1.7B](https://huggingface.co/LiquidAI/LFM3-1.7B) language model.
 
 ```
 you speak → Silero VAD (WASM) → LFM3-Omni-2B (WebGPU): audio in, interleaved text + speech out → avatar speaks
