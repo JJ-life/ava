@@ -80,16 +80,6 @@ export class Conversation {
     else if (text.length < this._last.reply.content.length) this._last.reply.content = cutShort(text); // all of it heard: nothing to change
   }
 
-  /**
-   * Something changed while they were talking (her glasses came off, say). Her earlier
-   * replies still say otherwise, and they outweigh the system prompt, so the change is
-   * also noted here, where it happened. Nothing to note in a conversation not yet begun.
-   * @param {string} text
-   */
-  note(text) {
-    if (this.history.length) this.history.push({ role: "user", content: text });
-  }
-
   get exchanges() {
     return this.history.filter((m) => m.role === "user").length;
   }

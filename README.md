@@ -39,14 +39,11 @@ you speak → Silero VAD (WASM) → LFM3-Omni-2B (WebGPU): audio in, interleaved
   generated (it runs several times faster than she speaks).
 - **Body language** (moods, thumbs up, shrug, a wave) is read from her words as they
   are heard, in `src/reactions.js`.
-- **Character** is a system prompt you can edit directly in Settings
+- **Character** is a short system prompt you can edit directly in Settings
   (`src/system-prompt.js` has the default). The only thing added to it is the model's
-  required "Respond with interleaved text and audio." line. The default is three short
-  paragraphs: who she is, the body and senses the app gives her, and who the user is.
-  One sentence wasn't enough: she answered "who are you?" as the model, took the user
-  for Ava, made up facts about them and denied the body on screen. Its line about her
-  look follows the "Wear glasses" setting. An edited prompt applies from her next reply
-  and starts the conversation afresh, because replies in the old voice hold her to it.
+  required "Respond with interleaved text and audio." line. An edited prompt applies
+  from her next reply and starts the conversation afresh, because replies in the old
+  voice hold her to it.
 - **Long conversations**: past the history budget the older half of the conversation
   is dropped. First she is asked, in text and unheard, what you have told her about
   yourself; her answer is kept as the most recent exchange (`public/workers/conversation.js`).
@@ -74,9 +71,8 @@ fails. Her own pauses inside a reply stay under about two seconds, so the worker
 a reply after four seconds of continuous silence. Some noise is still heard before
 that silence comes.
 
-A changed setting reaches her through the prompt, but what she has already said in the
-conversation weighs more: that is why a rewritten prompt starts the conversation afresh,
-and why taking her glasses off or putting them on is also noted in the conversation.
+What she has already said in a conversation weighs more than her prompt: that is why
+a rewritten prompt starts the conversation afresh.
 
 ## Run
 

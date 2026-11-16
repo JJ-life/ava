@@ -9,8 +9,7 @@
  *   { kind: "respond", id, audio }   a user turn, 16 kHz Float32
  *   { kind: "abort", id }            barge-in: stop generating this turn
  *   { kind: "heard", id, text }      barge-in: how much of that reply was heard
- *   { kind: "system", system, fresh, note }  new instructions; `fresh` (a new persona) starts a new
- *                                    conversation, `note` says in the conversation what changed
+ *   { kind: "system", system }       new persona / instructions: starts a new conversation
  *   { kind: "reset" }                forget the conversation
  *
  * worker -> main:
@@ -250,11 +249,8 @@ self.onmessage = ({ data }) => {
       idle = idle.then(async () => {
         if (data.system === system) return;
         system = data.system;
-        if (data.fresh) conversation.clear();
-        else if (data.note) conversation.note(data.note);
-        if (!session) return;
-        if (conversation.history.length) await settle();
-        else await session.prime(messages()).result.catch((err) => console.warn("prime failed:", err));
+        conversation.clear();
+        if (session) await session.prime(messages()).result.catch((err) => console.warn("prime failed:", err));
       });
       break;
     case "reset":
