@@ -1,100 +1,43 @@
----
-title: Ava
-emoji: 🗣️
-colorFrom: indigo
-colorTo: purple
-sdk: static
-app_file: index.html
-pinned: false
-thumbnail: https://huggingface.co/spaces/townbox/ava/resolve/main/thumbnail-v3.jpg
-short_description: Talk face to face with LFM3-Omni, running in your browser
-models:
-  - LiquidAI/LFM3-Omni-2B
-  - LiquidAI/LFM3-Omni-2B-GGUF
-  - LiquidAI/LFM3-1.7B
----
+# AI 智慧筆記摘要與重點整理助手
 
-# Ava
+這是一個採用現代感深色科技風格、完全於前端運作的「AI 智慧筆記摘要與重點整理助手」，支援繁體中文與行動裝置響應式排版，並透過 Google Gemini API（支援 `gemini-2.5-flash`、`gemini-2.5-pro` 等模型）提供高精確度的結構化長文精煉分析。
 
-Hands-free voice chat with Ava, a 3D lip-synced avatar, running entirely in the
-browser: the UX of [victor/gemma-avatar](https://huggingface.co/spaces/victor/gemma-avatar)
-on the model and WebGPU runtime of
-[LiquidAI/LFM3-Omni-2B-WebGPU](https://huggingface.co/spaces/LiquidAI/LFM3-Omni-2B-WebGPU).
-No backend: your voice never leaves the device.
+## ✨ 特色功能
 
-Model: [LiquidAI/LFM3-Omni-2B](https://huggingface.co/LiquidAI/LFM3-Omni-2B), loaded from
-[LiquidAI/LFM3-Omni-2B-GGUF](https://huggingface.co/LiquidAI/LFM3-Omni-2B-GGUF). It is built on the
-[LiquidAI/LFM3-1.7B](https://huggingface.co/LiquidAI/LFM3-1.7B) language model.
+1. **多樣化整理模式**：
+   - 🎯 **重點摘要**：提煉核心速覽、關鍵洞察與邏輯脈絡。
+   - ✅ **行動指南 & 待辦**：自動將筆記轉換為可執行的 To-Do 清單與時程指引。
+   - 🧠 **心智圖架構**：提供階層式清單與 Mermaid 語法的心智圖結構。
+   - ❓ **QA 問答複習**：自動生成深度考題與解析，強化學習記憶。
+   - 💡 **通俗易懂解說（ELI5）**：用生活化比喻化繁為簡。
 
-```
-you speak → Silero VAD (WASM) → LFM3-Omni-2B (WebGPU): audio in, interleaved text + speech out → avatar speaks
-```
+2. **精簡度彈性調節**：
+   - 支援「精簡扼要」、「平衡完整」、「深度詳細」三種摘要長度。
 
-- **Needs** a desktop browser with WebGPU and `shader-f16` (recent Chrome/Edge) and a
-  1.6 GB model download on first visit; later visits load from the browser cache.
-- **Model** runs in a worker, so the avatar keeps rendering. It hears the audio
-  directly: there is no separate transcription step, and so no user transcript.
-- **Barge-in**: talk over her and generation and playback stop immediately. Her
-  side of the history then holds what you had heard, not everything the model had
-  generated (it runs several times faster than she speaks).
-- **Body language** (moods, thumbs up, shrug, a wave) is read from her words as they
-  are heard, in `src/reactions.js`.
-- **Character** is a short system prompt you can edit directly in Settings
-  (`src/system-prompt.js` has the default). The only thing added to it is the model's
-  required "Respond with interleaved text and audio." line. An edited prompt applies
-  from her next reply and starts the conversation afresh, because replies in the old
-  voice hold her to it.
-- **Long conversations**: past the history budget the older half of the conversation
-  is dropped. First she is asked, in text and unheard, what you have told her about
-  yourself; her answer is kept as the most recent exchange (`public/workers/conversation.js`).
-- **Lip-sync** is derived from the audio by HeadAudio, as in gemma-avatar.
+3. **隱私與安全優先**：
+   - 前端直連 Google Gemini API，無任何第三方中繼後端儲存使用者的筆記或機密內容。
+   - API Key 僅儲存於使用者的瀏覽器本地端（LocalStorage），不會外洩。
 
-Differences from gemma-avatar, all forced by the model: there is no voice picker
-(LFM3-Omni's interleaved mode has one voice and ignores voice requests), and the
-model doesn't call avatar tools. Offering any tool schema derails its conversation:
-with the original Space's tools "let's play a quick game" starts a timer, and with
-avatar tools it gestures on every turn, gives shallow replies and can loop without
-speaking. The runtime, message format, generation mode and decoding otherwise match the
-original Space: her text is decoded greedily, her speech tokens are sampled from a random
-seed, and since each word follows from the speech so far, the same question gets
-differently worded answers from one time to the next.
+4. **現代響應式設計**：
+   - 採用 Glassmorphism 琉璃透光質感、深色低眩光配色。
+   - 針對桌面寬螢幕與行動裝置窄螢幕（手機/平板）皆提供流暢直覺的操作體驗。
 
-## Known model behaviour
+5. **實用生產力工具**：
+   - 一鍵複製整理結果到剪貼簿。
+   - 一鍵匯出 `.md` Markdown 文件。
+   - 內建文章與會議記錄範例，快速體驗。
+   - 支援快捷鍵 `Ctrl + Enter` / `Cmd + Enter` 即時觸發整理。
 
-LFM3-Omni-2B can re-ask its last question and can't sustain a game like Twenty
-Questions: it answers "no" to everything and doesn't hold a secret. The original
-LiquidAI Space does the same with the same model. This app doesn't try to hide it.
+## 🚀 本地啟動方式
 
-Now and then a long reply loses its way once its text is complete: the speech turns
-to noise and silence and, left alone, runs until the context is full and the turn
-fails. Her own pauses inside a reply stay under about two seconds, so the worker ends
-a reply after four seconds of continuous silence. Some noise is still heard before
-that silence comes.
-
-What she has already said in a conversation weighs more than her prompt: that is why
-a rewritten prompt starts the conversation afresh.
-
-## Run
+本專案為靜態前端網頁，任何 HTTP 伺服器皆可直接執行：
 
 ```bash
-bun install
-bun run start   # builds dist/ and serves http://localhost:3000
+# 使用 Python 內建伺服器
+python3 -m http.server 3000
+
+# 或使用 npx serve
+npx serve .
 ```
 
-## Test
-
-`bun test tests` covers the VAD segmenter, the session state machine, what the
-conversation history keeps (interruptions, trimming), the system prompt, reactions,
-loading lines and the load guard.
-`e2e/run.sh <scenario> <outDir>` drives the real app in headless Chromium on the
-real GPU: speech goes in through a PipeWire virtual mic, her voice is recorded at
-the OS sink. `e2e/analyze.py <outDir> --stt` reports latency, frame rate, mouth/audio
-correlation and a Whisper transcript. Needs PipeWire, `playwright-core`, Piper
-test clips (`E2E_AUDIO`) and a Python env with numpy, scipy, soundfile, faster-whisper.
-
-## Licences
-
-Avatar `brunette.glb`: Ready Player Me, CC BY-NC 4.0 (non-commercial). Model: LFM
-license 1.0. `Lfm3OmniForConditionalGeneration.js`: copied from the LiquidAI Space,
-which states no licence for it. TalkingHead, HeadAudio, Silero VAD: MIT.
-ONNX Runtime: MIT.
+開啟瀏覽器前往 `http://localhost:3000` 即可開始使用。

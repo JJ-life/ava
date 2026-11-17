@@ -1,104 +1,207 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-TW">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Ava</title>
-    <meta name="description" content="Talk face to face with LFM3-Omni, running in your browser" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Hugging Face Spaces" />
-    <meta property="og:url" content="https://townbox-ava.static.hf.space/index.html" />
-    <meta property="og:title" content="Ava" />
-    <meta property="og:description" content="Talk face to face with LFM3-Omni, running in your browser" />
-    <meta property="og:image" content="https://huggingface.co/spaces/townbox/ava/resolve/main/thumbnail-v3.jpg" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1393" />
-    <meta property="og:image:height" content="752" />
-    <meta property="og:image:alt" content="Ava, a 3D avatar with glasses and a green turtleneck. 100% in-browser avatar assistant." />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Ava" />
-    <meta name="twitter:description" content="Talk face to face with LFM3-Omni, running in your browser" />
-    <meta name="twitter:image" content="https://huggingface.co/spaces/townbox/ava/resolve/main/thumbnail-v3.jpg" />
-    <meta name="twitter:image:alt" content="Ava, a 3D avatar with glasses and a green turtleneck. 100% in-browser avatar assistant." />
-    <link rel="icon" href="data:," />
+    <title>AI 智慧筆記摘要與重點整理助手</title>
+    <meta name="description" content="運用 Google Gemini AI 技術的高效能智慧筆記重點整理與長文摘要助手" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    
-  <link rel="stylesheet" crossorigin href="./chunk-4t726cmy.css"><script type="module" crossorigin src="./chunk-4rz616bb.js"></script></head>
+    <link rel="stylesheet" href="./style.css" />
+    <!-- 引入 Markdown 渲染器與程式碼高亮 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
   <body>
-    <main id="app">
-      <!-- The avatar is the hero: a full-viewport 3D stage. -->
-      <div id="stage" aria-label="3D avatar"></div>
-      <div id="loading">Loading avatar…</div>
+    <div class="background-decor">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+    </div>
 
-      <header id="topbar">
-        <div id="identity">
-          <h1>Ava</h1>
-          <p>
-            Talk to <strong>Ava</strong> face to face, entirely in your browser.
-            LFM3-Omni on WebGPU · Silero&nbsp;VAD · TalkingHead&nbsp;3D
-          </p>
+    <div class="app-container">
+      <!-- 頂部導航與標題 -->
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-icon">✨</div>
+          <div class="brand-text">
+            <h1>AI 智慧筆記摘要助手</h1>
+            <p class="brand-subtitle">Gemini 2.5 驅動 · 長文精煉 · 關鍵洞察 · 心智圖架構</p>
+          </div>
         </div>
-        <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Settings">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
+        <div class="header-badges">
+          <span class="badge status-badge" id="api-status-badge">
+            <span class="dot"></span>
+            <span id="api-status-text">請輸入 API Key</span>
+          </span>
+        </div>
       </header>
 
-      <!-- What she's saying, as it's spoken. -->
-      <div id="subtitles" aria-live="polite"></div>
-
-      <footer id="controls">
-        <div id="progress" hidden><div id="progress-fill"></div></div>
-        <div id="caption">LOADING…</div>
-        <div id="buttons">
-          <button id="main-btn" disabled>
-            <span id="main-btn-label">Loading…</span>
-          </button>
-          <button id="mute-btn" class="icon-btn" hidden aria-label="Mute microphone" title="Mute microphone">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-              <line x1="12" y1="19" x2="12" y2="23"></line>
-              <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
-          </button>
-        </div>
-      </footer>
-
-      <dialog id="settings">
-        <form method="dialog">
-          <h2>Settings</h2>
-          <label class="check-row">
-            <input type="checkbox" id="subtitles-toggle" />
-            Show subtitles while she speaks
-          </label>
-          <label class="check-row">
-            <input type="checkbox" id="glasses-toggle" />
-            Wear glasses
-          </label>
-          <label>
-            System prompt
-            <textarea id="system-prompt" rows="10" spellcheck="false"></textarea>
-            <span class="hint">
-              Who she is and how she talks. A changed prompt applies from her next reply
-              and starts the conversation afresh. “Respond with interleaved text and audio.”
-              is always added after it, so she can speak.
-            </span>
-          </label>
-          <div class="dialog-actions">
-            <button type="button" id="reset-prompt">Restore default</button>
-            <button value="close" class="primary">Done</button>
+      <!-- 主要內容區域 -->
+      <main class="main-grid">
+        <!-- 左側/上方輸入面板 -->
+        <section class="panel input-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              <span>輸入長文或筆記內容</span>
+            </div>
+            <div class="char-count" id="char-count">0 字元</div>
           </div>
-        </form>
-      </dialog>
-    </main>
-    
+
+          <!-- API Key 與 模型設定列 -->
+          <div class="config-bar">
+            <div class="input-group api-key-group">
+              <label for="api-key-input">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
+                Google Gemini API Key
+              </label>
+              <div class="input-with-button">
+                <input
+                  type="password"
+                  id="api-key-input"
+                  placeholder="輸入您的 Gemini API Key (AIzaSy...)"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button type="button" id="toggle-key-visibility" class="ghost-btn" title="顯示/隱藏金鑰">👁️</button>
+              </div>
+            </div>
+
+            <div class="input-group model-group">
+              <label for="model-select">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                AI 模型選擇
+              </label>
+              <select id="model-select">
+                <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (推薦·快速精準)</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro (深度分析)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 模式與風格選項 -->
+          <div class="options-bar">
+            <div class="option-pill-group" id="mode-selector">
+              <button class="pill active" data-mode="summary">🎯 重點摘要</button>
+              <button class="pill" data-mode="actionable">✅ 行動指南 & 待辦</button>
+              <button class="pill" data-mode="mindmap">🧠 心智圖架構</button>
+              <button class="pill" data-mode="qa">❓ QA 問答複習</button>
+              <button class="pill" data-mode="eli5">💡 通俗易懂解說</button>
+            </div>
+            
+            <div class="length-selector">
+              <span class="sub-label">精簡度：</span>
+              <label><input type="radio" name="summary-length" value="concise"> 精簡扼要</label>
+              <label><input type="radio" name="summary-length" value="balanced" checked> 平衡完整</label>
+              <label><input type="radio" name="summary-length" value="detailed"> 深度詳細</label>
+            </div>
+          </div>
+
+          <!-- 筆記文字輸入區 -->
+          <div class="textarea-wrapper">
+            <textarea
+              id="content-input"
+              placeholder="在此貼上或輸入您想整理的長篇文章、會議記錄、學術論文、課程筆記或電子郵件...&#10;&#10;支援各種領域文字，AI 將快速提煉核心重點並建立條理化架構。"
+              spellcheck="false"
+            ></textarea>
+            
+            <!-- 快速範本工具列 -->
+            <div class="quick-actions">
+              <span class="quick-title">快速示範：</span>
+              <button type="button" class="quick-btn" id="sample-article">📰 科技產業文章</button>
+              <button type="button" class="quick-btn" id="sample-meeting">👥 專案會議記錄</button>
+              <button type="button" class="quick-btn" id="clear-input-btn">🗑️ 清空文字</button>
+            </div>
+          </div>
+
+          <!-- 提交動作按鈕 -->
+          <div class="submit-actions">
+            <button id="generate-btn" class="primary-btn">
+              <span class="btn-icon">⚡</span>
+              <span class="btn-text">開始智慧整理</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- 右側/下方輸出面板 -->
+        <section class="panel output-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span>整理結果與核心洞見</span>
+            </div>
+            <div class="action-buttons">
+              <button type="button" id="copy-btn" class="tool-btn" title="複製結果">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                <span id="copy-text">複製</span>
+              </button>
+              <button type="button" id="export-md-btn" class="tool-btn" title="匯出 Markdown 檔">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                <span>匯出 .md</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 輸出顯示主區域 -->
+          <div class="output-content-area" id="output-area">
+            <!-- 預設空狀態 -->
+            <div class="empty-state" id="empty-state">
+              <div class="empty-icon">📝</div>
+              <h3>準備為您提煉關鍵思維</h3>
+              <p>請在左側輸入 Gemini API Key 與長文筆記內容，點擊「開始智慧整理」，AI 將自動分析並生成清晰易讀的結構化摘要。</p>
+              <div class="feature-tags">
+                <span class="ftag">🚀 毫秒級極速回應</span>
+                <span class="ftag">📌 重點條列精準擷取</span>
+                <span class="ftag">📊 階層式心智結構</span>
+              </div>
+            </div>
+
+            <!-- 載入中骨架畫面 -->
+            <div class="loading-state" id="loading-state" style="display: none;">
+              <div class="spinner"></div>
+              <p class="loading-text">Gemini 正在深入研讀長文並提煉關鍵重點...</p>
+              <div class="skeleton-lines">
+                <div class="skeleton-line line-1"></div>
+                <div class="skeleton-line line-2"></div>
+                <div class="skeleton-line line-3"></div>
+                <div class="skeleton-line line-4"></div>
+              </div>
+            </div>
+
+            <!-- 最終渲染內容 (Markdown 解析) -->
+            <article class="markdown-body" id="result-markdown" style="display: none;"></article>
+          </div>
+        </section>
+      </main>
+
+      <!-- 頁腳 -->
+      <footer class="app-footer">
+        <p>AI 智慧筆記摘要助手 · 前端直連 Google Gemini API · 資料隱私安全無伺服器暫存</p>
+      </footer>
+    </div>
+
+    <!-- 提示訊息 Toast -->
+    <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
+
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
